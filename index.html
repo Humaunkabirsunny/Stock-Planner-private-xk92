@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Humaun Atelier — Stock Planner</title>
+<style>
+  :root {
+    --accent: #2563a8;
+    --accent-2: #3d7ec2;
+    --accent-light: #eaf2fb;
+    --bg: #f2f3f6;
+    --card: #ffffff;
+    --text: #15181d;
+    --text-secondary: #6b7280;
+    --border: #eceef2;
+    --danger: #e0574a;
+    --success: #1fa97e;
+    --shadow: 0 1px 2px rgba(20,30,50,0.04), 0 6px 16px rgba(20,30,50,0.06);
+    --shadow-sm: 0 1px 3px rgba(20,30,50,0.07);
+    --radius: 16px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f1115; --card: #1a1d23; --text: #eef0f3;
+      --text-secondary: #9aa1ac; --border: #2a2e37; --accent-light: #16233a;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 20px rgba(0,0,0,0.35);
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f1115; --card: #1a1d23; --text: #eef0f3;
+    --text-secondary: #9aa1ac; --border: #2a2e37; --accent-light: #16233a;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 20px rgba(0,0,0,0.35);
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    padding-top: env(safe-area-inset-top, 0px);
+    -webkit-font-smoothing: antialiased;
+  }
+  header {
+    padding: 18px 20px 12px;
+    padding-top: calc(18px + env(safe-area-inset-top, 0px));
+    background: linear-gradient(180deg, var(--bg) 85%, transparent);
+    position: sticky; top: 0; z-index: 10;
+  }
+  .brand-row { display: flex; align-items: center; gap: 10px; }
+  .brand-icon {
+    width: 36px; height: 36px; border-radius: 11px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12.5px; font-weight: 800; letter-spacing: -0.02em; color: white;
+    flex-shrink: 0; box-shadow: var(--shadow-sm);
+  }
+  .brand-text { flex: 1; min-width: 0; }
+  h1 { font-size: 16px; margin: 0; color: var(--text); font-weight: 700; letter-spacing: -0.01em; }
+  .sub { font-size: 11px; color: var(--text-secondary); margin: 1px 0 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .header-icons { display: flex; gap: 6px; flex-shrink: 0; }
+  .hicon {
+    width: 36px; height: 36px; border-radius: 11px; background: var(--card);
+    border: 1px solid var(--border); display: flex; align-items: center; justify-content: center;
+    color: var(--text-secondary); cursor: pointer; box-shadow: var(--shadow-sm); flex-shrink: 0;
+  }
+  .hicon svg { width: 17px; height: 17px; }
+  .hicon.active { color: var(--accent); border-color: var(--accent); background: var(--accent-light); }
+
+  main {
+    padding: 8px 16px 100px;
+    max-width: 480px; margin: 0 auto;
+    animation: fadeIn 0.22s ease;
+  }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+  .card {
+    background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 14px 16px; margin-bottom: 11px; box-shadow: var(--shadow-sm);
+    position: relative; transition: box-shadow 0.15s ease;
+  }
+  .card-title { font-size: 14.5px; font-weight: 700; margin: 0 0 4px; letter-spacing: -0.005em; }
+  .card-meta { font-size: 12px; color: var(--text-secondary); margin: 0 0 6px; }
+  .badge {
+    display: inline-block; font-size: 10.5px; font-weight: 700; padding: 3px 10px;
+    border-radius: 100px; margin-right: 6px; letter-spacing: 0.01em;
+  }
+  .badge.urgent { background: #fde8e5; color: var(--danger); }
+  .badge.soon { background: #fef2e0; color: #b1680a; }
+  .badge.later { background: var(--accent-light); color: var(--accent); }
+  .badge.done { background: #e3f7ef; color: var(--success); }
+  .badge.rate-good { background: #e3f7ef; color: var(--success); }
+  .badge.rate-mid { background: #fef2e0; color: #b1680a; }
+  .badge.rate-low { background: #fde8e5; color: var(--danger); }
+  .badge.sales { background: #f1e8fc; color: #7c3fd4; }
+  .card-tags { font-size: 12.5px; color: var(--text-secondary); line-height: 1.55; }
+  .check {
+    float: right; width: 26px; height: 26px; border-radius: 50%;
+    border: 1.5px solid var(--border); display: flex; align-items: center;
+    justify-content: center; font-size: 13px; cursor: pointer; color: var(--text-secondary);
+    transition: all 0.15s ease; background: var(--bg);
+  }
+  .check.on { background: var(--success); border-color: var(--success); color: white; box-shadow: 0 2px 8px rgba(31,169,126,0.35); }
+  .del {
+    float: right; width: 26px; height: 26px; border-radius: 50%;
+    border: 1.5px solid var(--border); display: flex; align-items: center;
+    justify-content: center; font-size: 12px; cursor: pointer; color: var(--danger);
+    margin-left: 8px; background: var(--bg);
+  }
+  .section-label {
+    font-size: 11px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--text-secondary); margin: 20px 2px 10px; display: flex; align-items: center; gap: 6px;
+  }
+  .section-label:first-child { margin-top: 4px; }
+  .niche-stars { font-size: 12px; color: #e8ae0e; letter-spacing: 1px; }
+  .empty { text-align: center; padding: 44px 16px; color: var(--text-secondary); font-size: 13px; }
+  .empty-icon { font-size: 28px; display: block; margin-bottom: 8px; opacity: 0.5; }
+
+  .field-label { font-size: 11px; font-weight: 700; color: var(--text-secondary); margin: 12px 0 5px; display: block; }
+  select, input[type="number"], input[type="date"], input[type="text"], textarea {
+    width: 100%; padding: 11px 12px; border-radius: 10px; border: 1.5px solid var(--border);
+    background: var(--bg); color: var(--text); font-size: 14px; font-family: inherit;
+  }
+  select:focus, input:focus, textarea:focus { outline: none; border-color: var(--accent); }
+  textarea { resize: vertical; }
+  .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .btn {
+    width: 100%; padding: 13px 0; border-radius: 12px; border: none;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: white;
+    font-weight: 700; font-size: 14px; margin-top: 14px; cursor: pointer;
+    box-shadow: 0 3px 10px rgba(37,99,168,0.3); transition: transform 0.1s ease;
+  }
+  .btn:active { transform: scale(0.98); }
+  .btn.secondary {
+    background: transparent; color: var(--danger); border: 1.5px solid var(--danger);
+    font-weight: 600; font-size: 12.5px; padding: 9px 0; margin-top: 4px; box-shadow: none;
+  }
+  .btn.outline {
+    background: transparent; color: var(--accent); border: 1.5px solid var(--accent);
+    box-shadow: none;
+  }
+  .entry-row { display: flex; justify-content: space-between; align-items: center; }
+  .entry-numbers { font-size: 12px; color: var(--text-secondary); }
+  .totals-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 6px; text-align: center; margin-top: 6px; }
+  .totals-grid div { background: var(--accent-light); border-radius: 12px; padding: 10px 2px; }
+  .totals-num { font-size: 17px; font-weight: 800; color: var(--accent); display: block; }
+  .totals-label { font-size: 9px; color: var(--text-secondary); font-weight: 600; letter-spacing: 0.02em; }
+  .note { font-size: 11.5px; color: var(--text-secondary); margin-top: 10px; line-height: 1.5; padding: 8px 10px; background: var(--accent-light); border-radius: 8px; }
+
+  /* Bottom tab bar */
+  nav {
+    display: flex; position: fixed; bottom: 0; left: 0; right: 0;
+    background: var(--card); border-top: 1px solid var(--border);
+    padding: 8px 6px calc(8px + env(safe-area-inset-bottom, 0px));
+    box-shadow: 0 -2px 16px rgba(20,30,50,0.08);
+    z-index: 20; overflow-x: auto; gap: 2px;
+  }
+  .tab {
+    flex: 1; min-width: 56px; text-align: center; padding: 6px 2px;
+    border-radius: 10px; cursor: pointer; color: var(--text-secondary);
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    transition: color 0.15s ease;
+  }
+  .tab-icon { line-height: 1; display: flex; }
+  .tab-icon svg { width: 20px; height: 20px; }
+  .tab-label { font-size: 9.5px; font-weight: 600; letter-spacing: 0.01em; }
+  .tab.active { color: var(--accent); }
+  .tab.active .tab-icon svg { transform: scale(1.08); }
+  .event-count {
+    font-size: 11px; font-weight: 700; color: var(--accent); background: var(--accent-light);
+    padding: 2px 9px; border-radius: 100px; margin-left: auto;
+  }
+  .prompt-row {
+    display: flex; align-items: flex-start; gap: 8px; padding: 9px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .prompt-row:last-child { border-bottom: none; }
+  .prompt-text { flex: 1; font-size: 12px; color: var(--text); line-height: 1.5; }
+  .copy-btn {
+    flex-shrink: 0; width: 30px; height: 30px; border-radius: 9px;
+    border: 1px solid var(--border); background: var(--bg); color: var(--text-secondary);
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+  }
+  .copy-btn svg { width: 15px; height: 15px; }
+  .copy-btn.copied { background: #e3f7ef; border-color: var(--success); color: var(--success); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand-row">
+    <div class="brand-icon">HA</div>
+    <div class="brand-text">
+      <h1>Stock Planner</h1>
+      <p class="sub">Humaun Atelier &middot; private, personal use only</p>
+    </div>
+    <div class="header-icons">
+      <div class="hicon" data-tab="tips" title="Tips"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a6 6 0 0 0-4 10.5c.6.5 1 1.3 1 2.1V15h6v-.4c0-.8.4-1.6 1-2.1A6 6 0 0 0 12 2Z"/></svg></div>
+      <div class="hicon" data-tab="export" title="Export"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 8 5-5 5 5"/><path d="M5 21h14"/></svg></div>
+    </div>
+  </div>
+</header>
+
+<main id="main"></main>
+
+<nav>
+  <div class="tab active" data-tab="action"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z"/></svg></span><span class="tab-label">Action</span></div>
+  <div class="tab" data-tab="events"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M16 3v4"/><path d="M8 3v4"/><path d="M3 10h18"/></svg></span><span class="tab-label">Events</span></div>
+  <div class="tab" data-tab="niches"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m12 2 3.1 6.6 7.2.9-5.3 5 1.4 7.1L12 18l-6.4 3.6 1.4-7.1-5.3-5 7.2-.9Z"/></svg></span><span class="tab-label">Niches</span></div>
+  <div class="tab" data-tab="batches"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5Z"/><path d="M3 8l9 5 9-5"/><path d="M12 13v8"/></svg></span><span class="tab-label">Batches</span></div>
+  <div class="tab" data-tab="tracker"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10"/><path d="M12 20V4"/><path d="M20 20v-7"/></svg></span><span class="tab-label">Tracker</span></div>
+</nav>
+
+<script>
+const BUILTIN_EVENTS = [
+  { name: "Movember (Men's Health Awareness)", date: "2026-11-01", range: "Nov 1-30", tags: "mustache, self-care, mens wellness, checkup, confidence metaphor" },
+  { name: "World Kindness Day", date: "2026-11-13", range: "Nov 13", tags: "helping hands, sharing, community, gentle animal kindness" },
+  { name: "International Men's Day", date: "2026-11-19", range: "Nov 19", tags: "fatherhood, mentorship, protective strength" },
+  { name: "Black Friday / Cyber Monday", date: "2026-11-27", range: "Nov 27-30", tags: "neon glass copy-space, gift box glass, online shopping lifestyle" },
+  { name: "International Day of Persons with Disabilities", date: "2026-12-03", range: "Dec 3", tags: "assistive tech, prosthetic, guide dog, wheelchair creativity" },
+  { name: "International Volunteer Day", date: "2026-12-05", range: "Dec 5", tags: "planting trees, donation sorting, teamwork metaphor" },
+  { name: "Human Rights Day", date: "2026-12-10", range: "Dec 10", tags: "unity, freedom metaphor, hands together" },
+  { name: "Winter Solstice / New Year's Eve", date: "2026-12-21", range: "Dec 21-31", tags: "fresh start, candle, countdown, cozy winter" },
+];
+
+const BASE_NICHE_NAMES = [
+  "Literal isometric lifestyle (person + pet/nature)",
+  "Guidance / direction metaphor",
+  "Distinct-shape glassmorphism (3D render)",
+  "Technology metaphor + lifestyle",
+  "Abstract 3D light-render (knotlume)",
+  "Watercolor botanical / floral",
+  "Seasonal / holiday batch",
+  "Other / experimental",
+];
+
+const NICHES_INFO = [
+  { name: "Literal isometric lifestyle (person + pet/nature)", stars: 5, note: "Most reliable repeat seller — park scenes, dog walking, cozy home moments. Always include a fictional-character disclaimer in the prompt." },
+  { name: "Guidance / direction metaphor", stars: 5, note: "Lighthouse, compass, candle-path concepts. Multiple confirmed sales. Keep the object specific, not generic." },
+  { name: "Distinct-shape glassmorphism (3D render)", stars: 4, note: "Only works when the glass forms a clearly recognizable object (animal, flower, object) — plain swirls get rejected." },
+  { name: "Technology metaphor + lifestyle", stars: 4, note: "85%+ approval rate on the 100-prompt tech batch. Avoid screen UI and logos in every prompt." },
+  { name: "Abstract 3D light-render (knotlume — shape + light-behavior)", stars: 3, note: "Experimental but promising — tangled knot / faceted shapes with prism-split or caustic light outperform plain smooth-curve renders." },
+  { name: "Watercolor botanical / floral", stars: 3, note: "Paused for now pending sales data, but render quality from Google Flow was excellent. Revisit once results come in." },
+  { name: "Seasonal/holiday batches (Christmas, Halloween)", stars: 4, note: "Confirmed sale (Christmas tree render). Upload 10-12 weeks ahead of the date." },
+];
+
+const BATCHES = [{"name": "tomorrow1- (Movember/Kindness + Evergreen)", "date": "2026-10-11", "covers": ["Movember (Men's Health Awareness)", "World Kindness Day", "Literal isometric lifestyle (person + pet/nature)", "Guidance / direction metaphor", "Distinct-shape glassmorphism (3D render)"], "prompts_list": ["A person trimming their beard in front of a bathroom mirror, self-care routine concept, stylized fictional character with simplified generic features, award-winning isometric illustration, sophisticated color grading, polished professional vector art, balanced eye-catching composition, no text, no signage, no lettering, 16:9", "A badger grooming itself in a sunny meadow, self-care concept, award-winning editorial illustration, sophisticated color grading, polished professional vector art, balanced eye-catching composition, no text, no signage, no lettering, 16:9", "A person donating blood at a community health drive, men's health awareness concept, stylized fictional character with simplified generic features, award-winning isometric illustration, sophisticated color grading, polished professional vector art, balanced eye-catching composition, no text, no signage, no lettering, 16:9", "A stag with full antlers standing proudly in an autumn forest, confidence concept, award-winning editorial illustration, sophisticated color grading, polished professional vector art, balanced eye-catching composition, no text, no signage, no lettering, 16:9", "Glossy glass forming a sharply defined bear silhouette with a full furry coat, not a generic abstract swirl, warm brown to cream gradient, light gray studio background, symmetrical balance, award-winning 3D illustration, sophisticated color grading, polished professional render, eye-catching composition, no text, no signage, no lettering, 16:9", "A person checking their blood pressure at a home desk, preventive health concept, stylized fictional character with simplified generic features, award-winning isometric illustration, sophisticated color grading, polished professional vector art, balanced eye-catching composition, no text, no signage, no lettering, 16:9", "Two friends sharing a quiet conversation on a park bench, emotional support concept, stylized fictional character with simplified generic features, award-winning isometric illustration, sophisticated color grading, polished professional vector art, balanced eye-catching composition, no text, no signage, no lettering, 16:9", "A squirrel sharing a nut with another squirrel on a branch, kindness in nature concept, award-winning editorial illustration, sophisticated color grading, polished professional vector art, balanced eye-catching composition, no text, no signage, no lettering, 16:9", "A person leaving a small kind note on a coworker's desk, everyday kindness concept, stylized fictional character with simplified generic features, award-winning isometric illustration, sophisticated color grading, polished professional vector art, balanced eye-catching composition, no text, no signage, no lettering, 16:9", "A deer nuzzling another deer gently in a snowy clearing, kindness and companionship concept, award-winning editorial illustration, sophisticated color grading, polished professional vector art, balanced eye-catching composition, no text, no signage, no lettering, 16:9", "A person organizing a bookshelf with a cat sleeping on top, cozy lifestyle concept, stylized fictional character with simplified generic features, award-winning isometric illustration, sophisticated color grading, polished professional vector art, balanced eye-catching composition, no text, no signage, no lettering, 16:9", "A heron standing patiently at a riverbank at dawn, patience and focus concept, award-winning editorial illustration, sophisticated color grading, polished professional vector art, balanced eye-catching composition, no text, no signage, no lettering, 16:9", "Glossy glass forming a sharply defined crane bird silhouette, not a generic abstract swirl, pearl white to silver gradient, light gray studio background, symmetrical balance, award-winning 3D illustration, sophisticated color grading, polished professional render, eye-catching composition, no text, no signage, no lettering, 16:9", "A person repairing a wooden fence with a dog watching nearby, rural lifestyle concept, stylized fictional character with simplified generic features, award-winning isometric illustration, sophisticated color grading, polished professional vector art, balanced eye-catching composition, no text, no signage, no lettering, 16:9", "A single flare of sunrise breaking through mountain peaks, hope concept, award-winning editorial illustration, sophisticated color grading, polished professional vector art, balanced eye-catching composition, no text, no signage, no lettering, 16:9", "A person brewing coffee while their dog waits by the door for a walk, morning routine concept, stylized fictional character with simplified generic features, award-winning isometric illustration, sophisticated color grading, polished professional vector art, balanced eye-catching composition, no text, no signage, no lettering, 16:9", "A compass resting on an old map beside a cup of tea, journey planning concept, award-winning editorial illustration, sophisticated color grading, polished professional vector art, balanced eye-catching composition, no text, no signage, no lettering, 16:9", "A person building a small birdhouse in a garage workshop, hobby concept, stylized fictional character with simplified generic features, award-winning isometric illustration, sophisticated color grading, polished professional vector art, balanced eye-catching composition, no text, no signage, no lettering, 16:9", "A single star shining brightly above a quiet mountain cabin at night, guidance and peace concept, award-winning editorial illustration, sophisticated color grading, polished professional vector art, balanced eye-catching composition, no text, no signage, no lettering, 16:9", "A fox resting calmly in a sunlit autumn meadow, calm confidence concept, award-winning editorial illustration, sophisticated color grading, polished professional vector art, balanced eye-catching composition, no text, no signage, no lettering, 16:9"], "csv": "Filename,Title,Keywords,Category,Releases\ntomorrow1-1.jpeg,\"Person trimming their beard in front of a bathroom mirror, self-care routine concept, isometric vector illustration\",\"beard trimming, grooming, bathroom, self care, mens health, movember, routine, lifestyle, concept, isometric, vector illustration, editorial, minimal, indoor, fictional character\",19,\ntomorrow1-2.jpeg,\"Badger grooming itself in a sunny meadow, self-care concept, editorial vector illustration\",\"badger, grooming, meadow, self care, wildlife, movember, mens health, concept, metaphor, vector illustration, editorial, minimal, gradient, nature\",6,\ntomorrow1-3.jpeg,\"Person donating blood at a community health drive, mens health awareness concept, isometric vector illustration\",\"blood donation, health drive, community, mens health, movember, healthcare, charity, lifestyle, concept, isometric, vector illustration, editorial, minimal, indoor, fictional character\",19,\ntomorrow1-4.jpeg,\"Stag with full antlers standing in an autumn forest, confidence concept, editorial vector illustration\",\"stag, deer, antlers, autumn forest, confidence, pride, movember, mens health, wildlife, concept, metaphor, vector illustration, editorial, minimal, gradient, nature\",6,\ntomorrow1-5.jpeg,\"Glossy glass forming a bear silhouette with a furry coat, movember concept, 3D render illustration\",\"bear, glass, 3d render, movember, mens health, glossy, silhouette, distinct shape, brown, cream, gradient, studio, minimal, symmetrical, concept, graphic resource\",8,\ntomorrow1-6.jpeg,\"Person checking blood pressure at a home desk, preventive health concept, isometric vector illustration\",\"blood pressure, checkup, preventive health, home, desk, mens health, movember, wellness, lifestyle, concept, isometric, vector illustration, editorial, minimal, indoor, fictional character\",19,\ntomorrow1-7.jpeg,\"Two friends sharing a quiet conversation on a park bench, emotional support concept, isometric vector illustration\",\"friends, conversation, park bench, emotional support, mental health, kindness, lifestyle, concept, isometric, vector illustration, editorial, minimal, outdoor, fictional character\",12,\ntomorrow1-8.jpeg,\"Squirrel sharing a nut with another squirrel on a branch, kindness in nature concept, editorial vector illustration\",\"squirrel, sharing, nut, branch, kindness, world kindness day, wildlife, concept, metaphor, vector illustration, editorial, minimal, gradient, nature\",6,\ntomorrow1-9.jpeg,\"Person leaving a kind note on a coworker's desk, everyday kindness concept, isometric vector illustration\",\"kind note, coworker, desk, kindness, world kindness day, office, workplace, lifestyle, concept, isometric, vector illustration, editorial, minimal, indoor, fictional character\",3,\ntomorrow1-10.jpeg,\"Deer nuzzling another deer gently in a snowy clearing, kindness and companionship concept, editorial vector illustration\",\"deer, nuzzling, snow, kindness, companionship, world kindness day, wildlife, winter, concept, metaphor, vector illustration, editorial, minimal, gradient, nature\",6,\ntomorrow1-11.jpeg,\"Person organizing a bookshelf with a cat sleeping on top, cozy lifestyle concept, isometric vector illustration\",\"bookshelf, organizing, cat, cozy, home, lifestyle, pet, reading, concept, isometric, vector illustration, editorial, minimal, indoor, fictional character\",12,\ntomorrow1-12.jpeg,\"Heron standing patiently at a riverbank at dawn, patience and focus concept, editorial vector illustration\",\"heron, riverbank, dawn, patience, focus, bird, wildlife, concept, metaphor, vector illustration, editorial, minimal, gradient, nature\",6,\ntomorrow1-13.jpeg,\"Glossy glass forming a crane bird silhouette, elegance concept, 3D render illustration\",\"crane, bird, glass, 3d render, elegance, glossy, silhouette, distinct shape, pearl, silver, gradient, studio, minimal, symmetrical, concept, graphic resource\",8,\ntomorrow1-14.jpeg,\"Person repairing a wooden fence with a dog watching, rural lifestyle concept, isometric vector illustration\",\"fence repair, wooden fence, dog, rural, lifestyle, diy, outdoor, pet, concept, isometric, vector illustration, editorial, minimal, outdoor, fictional character\",12,\ntomorrow1-15.jpeg,\"Sunrise flare breaking through mountain peaks, hope concept, editorial vector illustration\",\"sunrise, mountains, hope, flare, dawn, landscape, concept, metaphor, vector illustration, editorial, minimal, gradient, nature\",6,\ntomorrow1-16.jpeg,\"Person brewing coffee while their dog waits by the door, morning routine concept, isometric vector illustration\",\"coffee, brewing, dog, morning routine, kitchen, home, pet, lifestyle, concept, isometric, vector illustration, editorial, minimal, indoor, fictional character\",12,\ntomorrow1-17.jpeg,\"Compass resting on an old map beside a cup of tea, journey planning concept, editorial vector illustration\",\"compass, map, tea, journey, planning, travel, adventure, concept, metaphor, vector illustration, editorial, minimal, gradient\",3,\ntomorrow1-18.jpeg,\"Person building a small birdhouse in a garage workshop, hobby concept, isometric vector illustration\",\"birdhouse, building, garage, workshop, hobby, diy, woodworking, lifestyle, concept, isometric, vector illustration, editorial, minimal, indoor, fictional character\",12,\ntomorrow1-19.jpeg,\"Star shining above a quiet mountain cabin at night, guidance and peace concept, editorial vector illustration\",\"star, night sky, mountain cabin, guidance, peace, calm, landscape, concept, metaphor, vector illustration, editorial, minimal, gradient, nature\",6,\ntomorrow1-20.jpeg,\"Fox resting calmly in a sunlit autumn meadow, calm confidence concept, editorial vector illustration\",\"fox, resting, meadow, autumn, calm, confidence, wildlife, concept, metaphor, vector illustration, editorial, minimal, gradient, nature\",6,\n", "csv_filename": "adobe-stock-tomorrow1-batch.csv"},{"name": "events1- (Multi-Event Batch)", "date": "2026-10-07", "covers": ["Movember (Men's Health Awareness)", "World Kindness Day", "International Men's Day", "Black Friday / Cyber Monday", "International Day of Persons with Disabilities", "International Volunteer Day"], "prompts": "MOVEMBER\n1. A lion calmly grooming its mane in morning light, self-care and confidence concept, award-winning editorial illustration, sophisticated color grading, polished professional vector art, balanced eye-catching composition, no text, no signage, no lettering, 16:9\n2. A person checking in with a doctor during a routine health visit, preventive care concept, stylized fictional character with simplified generic features, award-winning isometric illustration, sophisticated color grading, polished professional vector art, balanced eye-catching composition, no text, no signage, no lettering, 16:9\n3. Glossy glass forming a sharply defined walrus silhouette with full mustache, not a generic abstract swirl, warm gray to cream gradient, light gray studio background, symmetrical balance, award-winning 3D illustration, sophisticated color grading, polished professional render, eye-catching composition, no text, no signage, no lettering, 16:9\n4. A person jogging at sunrise with a supportive friend beside them, men's wellness concept, stylized fictional character with simplified generic features, award-winning isometric illustration, sophisticated color grading, polished professional vector art, balanced eye-catching composition, no text, no signage, no lettering, 16:9\n\nWORLD KINDNESS DAY\n5. A person helping an elderly neighbor carry groceries up the steps, everyday kindness concept, stylized fictional character with simplified generic features, award-winning isometric illustration, sophisticated color grading, polished professional vector art, balanced eye-catching composition, no text, no signage, no lettering, 16:9\n6. Two cupped hands gently passing a small glowing seed to each other, kindness and giving concept, award-winning editorial illustration, sophisticated color grading, polished professional vector art, balanced eye-catching composition, no text, no signage, no lettering, 16:9\n7. A robin sharing a found berry with another smaller bird on a branch, kindness in nature concept, award-winning editorial illustration, sophisticated color grading, polished professional vector art, balanced eye-catching composition, no text, no signage, no lettering, 16:9\n\nINTERNATIONAL MEN'S DAY\n8. A father teaching his child to ride a bicycle in a park, fatherhood concept, stylized fictional character with simplified generic features, award-winning isometric illustration, sophisticated color grading, polished professional vector art, balanced eye-catching composition, no text, no signage, no lettering, 16:9\n9. A person mentoring a younger colleague at a workbench, guidance and mentorship concept, stylized fictional character with simplified generic features, award-winning isometric illustration, sophisticated color grading, polished professional vector art, balanced eye-catching composition, no text, no signage, no lettering, 16:9\n10. An elephant gently guiding a young calf across a river, protective strength concept, award-winning editorial illustration, sophisticated color grading, polished professional vector art, balanced eye-catching composition, no text, no signage, no lettering, 16:9\n\nBLACK FRIDAY / CYBER MONDAY\n11. Photorealistic 3D render, a smooth curved glass surface with neon red and gold luminous glow gradient, minimalist dark black background, large empty copy-space area, soft reflection beneath, cinematic lighting, ultra-clean glossy material, abstract shopping background concept, no text, no logos, 16:9\n12. A shopping cart overflowing with gift-wrapped boxes rolling down a glowing discount-tag path, sale and savings concept, award-winning editorial illustration, sophisticated color grading, polished professional vector art, balanced eye-catching composition, no text, no signage, no lettering, 16:9\n13. A person shopping online on a laptop at a cozy kitchen table, digital shopping concept, stylized fictional character with simplified generic features, award-winning isometric illustration, sophisticated color grading, polished professional vector art, balanced eye-catching composition, no text, no signage, no lettering, 16:9\n14. Glossy glass forming a sharply defined gift box silhouette with ribbon, not a generic abstract swirl, deep red to gold gradient, light gray studio background, symmetrical balance, award-winning 3D illustration, sophisticated color grading, polished professional render, eye-catching composition, no text, no signage, no lettering, 16:9\n\nINTERNATIONAL DAY OF PERSONS WITH DISABILITIES\n15. A person using a wheelchair painting at an easel in a sunlit studio, creativity and ability concept, stylized fictional character with simplified generic features, award-winning isometric illustration, sophisticated color grading, polished professional vector art, balanced eye-catching composition, no text, no signage, no lettering, 16:9\n16. A person testing a prosthetic running blade on a track at sunrise, resilience and strength concept, stylized fictional character with simplified generic features, award-winning isometric illustration, sophisticated color grading, polished professional vector art, balanced eye-catching composition, no text, no signage, no lettering, 16:9\n17. A guide dog leading its owner confidently across a city crosswalk, independence and trust concept, award-winning editorial illustration, sophisticated color grading, polished professional vector art, balanced eye-catching composition, no text, no signage, no lettering, 16:9\n\nINTERNATIONAL VOLUNTEER DAY\n18. A group of hands planting a young tree together in a community park, volunteering concept, stylized fictional character with simplified generic features, award-winning isometric illustration, sophisticated color grading, polished professional vector art, balanced eye-catching composition, no text, no signage, no lettering, 16:9\n19. A person sorting donated clothes into boxes at a community center, giving back concept, stylized fictional character with simplified generic features, award-winning isometric illustration, sophisticated color grading, polished professional vector art, balanced eye-catching composition, no text, no signage, no lettering, 16:9\n20. Ants working together to carry a large leaf toward their colony, teamwork and volunteering concept, award-winning editorial illustration, sophisticated color grading, polished professional vector art, balanced eye-catching composition, no text, no signage, no lettering, 16:9\n", "csv": "Filename,Title,Keywords,Category,Releases\nevents1-1.jpeg,\"Lion grooming its mane in morning light, self-care and confidence concept, editorial vector illustration\",\"lion, mane, grooming, self care, confidence, movember, mens health, wellness, concept, metaphor, vector illustration, editorial, minimal, gradient, wildlife, nature\",6,\nevents1-2.jpeg,\"Person checking in with a doctor during a routine health visit, preventive care concept, isometric vector illustration\",\"doctor visit, checkup, preventive care, mens health, movember, healthcare, clinic, lifestyle, concept, isometric, vector illustration, editorial, minimal, indoor, fictional character\",19,\nevents1-3.jpeg,\"Glossy glass forming a walrus silhouette with full mustache, movember concept, 3D render illustration\",\"walrus, mustache, glass, 3d render, movember, mens health, glossy, silhouette, distinct shape, gray, cream, gradient, studio, minimal, symmetrical, concept, graphic resource\",8,\nevents1-4.jpeg,\"Person jogging at sunrise with a supportive friend, mens wellness concept, isometric vector illustration\",\"jogging, running, sunrise, friends, mens wellness, movember, exercise, health, lifestyle, concept, isometric, vector illustration, editorial, minimal, outdoor, fictional character\",19,\nevents1-5.jpeg,\"Person helping an elderly neighbor carry groceries, everyday kindness concept, isometric vector illustration\",\"helping, elderly, groceries, kindness, neighbor, community, world kindness day, lifestyle, concept, isometric, vector illustration, editorial, minimal, outdoor, fictional character\",12,\nevents1-6.jpeg,\"Cupped hands passing a glowing seed to each other, kindness and giving concept, editorial vector illustration\",\"hands, seed, giving, kindness, generosity, world kindness day, concept, metaphor, vector illustration, editorial, minimal, gradient, glow, community\",6,\nevents1-7.jpeg,\"Robin sharing a berry with another bird, kindness in nature concept, editorial vector illustration\",\"robin, bird, berry, sharing, kindness, nature, world kindness day, concept, metaphor, vector illustration, editorial, minimal, gradient, wildlife\",6,\nevents1-8.jpeg,\"Father teaching his child to ride a bicycle in a park, fatherhood concept, isometric vector illustration\",\"father, child, bicycle, teaching, fatherhood, international mens day, park, family, lifestyle, concept, isometric, vector illustration, editorial, minimal, outdoor, fictional character\",12,\nevents1-9.jpeg,\"Person mentoring a younger colleague at a workbench, guidance and mentorship concept, isometric vector illustration\",\"mentoring, mentorship, guidance, workbench, colleague, international mens day, career, lifestyle, concept, isometric, vector illustration, editorial, minimal, indoor, fictional character\",3,\nevents1-10.jpeg,\"Elephant guiding a young calf across a river, protective strength concept, editorial vector illustration\",\"elephant, calf, river, protective, strength, fatherhood, international mens day, wildlife, concept, metaphor, vector illustration, editorial, minimal, gradient, nature\",6,\nevents1-11.jpeg,\"Curved glass surface with neon red and gold glow, black friday shopping concept, 3D render illustration\",\"black friday, cyber monday, neon, glass, 3d render, shopping, sale, discount, gradient, dark background, copy space, abstract, concept, graphic resource, modern\",8,\nevents1-12.jpeg,\"Shopping cart overflowing with gift boxes on a discount-tag path, sale and savings concept, editorial vector illustration\",\"shopping cart, gift boxes, discount, sale, savings, black friday, cyber monday, shopping, concept, metaphor, vector illustration, editorial, minimal, gradient\",3,\nevents1-13.jpeg,\"Person shopping online on a laptop at a kitchen table, digital shopping concept, isometric vector illustration\",\"online shopping, laptop, kitchen table, digital shopping, black friday, cyber monday, ecommerce, lifestyle, concept, isometric, vector illustration, editorial, minimal, indoor, fictional character\",12,\nevents1-14.jpeg,\"Glossy glass forming a gift box silhouette with ribbon, holiday shopping concept, 3D render illustration\",\"gift box, ribbon, glass, 3d render, black friday, holiday shopping, glossy, silhouette, distinct shape, red, gold, gradient, studio, minimal, symmetrical, concept, graphic resource\",8,\nevents1-15.jpeg,\"Person in a wheelchair painting at an easel in a sunlit studio, creativity and ability concept, isometric vector illustration\",\"wheelchair, painting, easel, studio, creativity, disability, international day of persons with disabilities, art, lifestyle, concept, isometric, vector illustration, editorial, minimal, indoor, fictional character\",12,\nevents1-16.jpeg,\"Person testing a prosthetic running blade on a track, resilience and strength concept, isometric vector illustration\",\"prosthetic, running blade, track, resilience, disability, international day of persons with disabilities, sport, athlete, lifestyle, concept, isometric, vector illustration, editorial, minimal, outdoor, fictional character\",18,\nevents1-17.jpeg,\"Guide dog leading its owner across a city crosswalk, independence and trust concept, editorial vector illustration\",\"guide dog, crosswalk, independence, trust, disability, international day of persons with disabilities, city, concept, metaphor, vector illustration, editorial, minimal, gradient, urban\",6,\nevents1-18.jpeg,\"Hands planting a young tree together in a community park, volunteering concept, isometric vector illustration\",\"planting tree, community, volunteering, hands together, international volunteer day, park, teamwork, lifestyle, concept, isometric, vector illustration, editorial, minimal, outdoor, fictional character\",12,\nevents1-19.jpeg,\"Person sorting donated clothes into boxes at a community center, giving back concept, isometric vector illustration\",\"donating clothes, sorting, community center, giving back, international volunteer day, charity, lifestyle, concept, isometric, vector illustration, editorial, minimal, indoor, fictional character\",17,\nevents1-20.jpeg,\"Ants carrying a large leaf together toward their colony, teamwork and volunteering concept, editorial vector illustration\",\"ants, leaf, teamwork, colony, volunteering, international volunteer day, cooperation, insects, concept, metaphor, vector illustration, editorial, minimal, gradient, nature\",6,\n", "csv_filename": "adobe-stock-events1-batch.csv"}, {"name": "knotlume1- (Abstract 3D Light-Render)", "date": "2026-09-30", "covers": ["Abstract 3D light-render (knotlume)"], "prompts": "30 prompts combining 6 shape types (tangled knot, ice-facet cluster, braided metallic twist, origami-fold cluster, spiral glass knot, fractured crystal shard cluster) x 5 light-behaviors (prism-split, caustic, internal glow, breathing pulse, dual-color collision). See CSV for full titles.", "csv": "Filename,Title,Keywords,Category,Releases\nknotlume1-1.jpeg,\"Iridescent tangled ribbon knot with prism-split rainbow light, abstract 3D render\",\"tangled knot, ribbon, iridescent, prism, rainbow light, abstract, 3d render, thin film, glossy, dark background, studio, distinct shape, concept, graphic resource, modern, wallpaper, background\",8,\nknotlume1-2.jpeg,\"Iridescent tangled ribbon knot with underwater caustic light, abstract 3D render\",\"tangled knot, ribbon, iridescent, caustic light, water pattern, abstract, 3d render, thin film, glossy, dark background, studio, distinct shape, concept, graphic resource, modern, wallpaper\",8,\nknotlume1-3.jpeg,\"Translucent tangled ribbon knot glowing from within, amber light, abstract 3D render\",\"tangled knot, ribbon, translucent, glowing, amber, inner light, abstract, 3d render, luminous, dark background, studio, distinct shape, concept, graphic resource, modern, wallpaper\",8,\nknotlume1-4.jpeg,\"Iridescent tangled ribbon knot with breathing violet pink pulse, abstract 3D render\",\"tangled knot, ribbon, iridescent, breathing light, violet, pink, pulse, abstract, 3d render, dark background, studio, distinct shape, concept, graphic resource, modern, wallpaper\",8,\nknotlume1-5.jpeg,\"Iridescent tangled ribbon knot with blue orange light collision, abstract 3D render\",\"tangled knot, ribbon, iridescent, light collision, blue, orange, abstract, 3d render, dark background, studio, distinct shape, concept, graphic resource, modern, wallpaper\",8,\nknotlume1-6.jpeg,\"Angular faceted ice crystal cluster with prism-split rainbow, abstract 3D render\",\"ice crystal, faceted, angular, prism, rainbow, frozen, abstract, 3d render, crystalline, dark background, studio, distinct shape, concept, graphic resource, modern, wallpaper\",8,\nknotlume1-7.jpeg,\"Angular faceted ice crystal cluster with underwater caustic light, abstract 3D render\",\"ice crystal, faceted, angular, caustic light, water pattern, frozen, abstract, 3d render, crystalline, dark background, studio, distinct shape, concept, graphic resource, modern\",8,\nknotlume1-8.jpeg,\"Angular faceted ice crystal cluster glowing cyan white, abstract 3D render\",\"ice crystal, faceted, angular, glowing, cyan, white, inner light, frozen, abstract, 3d render, dark background, studio, distinct shape, concept, graphic resource, modern\",8,\nknotlume1-9.jpeg,\"Angular faceted ice crystal cluster with breathing teal white pulse, abstract 3D render\",\"ice crystal, faceted, angular, breathing light, teal, white, pulse, frozen, abstract, 3d render, dark background, studio, distinct shape, concept, graphic resource, modern\",8,\nknotlume1-10.jpeg,\"Angular faceted ice crystal cluster with cyan magenta light collision, abstract 3D render\",\"ice crystal, faceted, angular, light collision, cyan, magenta, frozen, abstract, 3d render, dark background, studio, distinct shape, concept, graphic resource, modern\",8,\nknotlume1-11.jpeg,\"Braided metallic ribbon twist with prism-split rainbow highlight, abstract 3D render\",\"braided ribbon, metallic, twist, prism, rainbow, liquid metal, abstract, 3d render, glossy, dark background, studio, distinct shape, concept, graphic resource, modern, wallpaper\",8,\nknotlume1-12.jpeg,\"Braided metallic ribbon twist with underwater caustic light, abstract 3D render\",\"braided ribbon, metallic, twist, caustic light, water pattern, liquid metal, abstract, 3d render, glossy, dark background, studio, distinct shape, concept, graphic resource\",8,\nknotlume1-13.jpeg,\"Braided metallic ribbon twist glowing warm gold, abstract 3D render\",\"braided ribbon, metallic, twist, glowing, gold, inner light, liquid metal, abstract, 3d render, dark background, studio, distinct shape, concept, graphic resource, modern\",8,\nknotlume1-14.jpeg,\"Braided metallic ribbon twist with breathing silver blue pulse, abstract 3D render\",\"braided ribbon, metallic, twist, breathing light, silver, blue, pulse, liquid metal, abstract, 3d render, dark background, studio, distinct shape, concept, graphic resource\",8,\nknotlume1-15.jpeg,\"Braided metallic ribbon twist with red blue light collision, abstract 3D render\",\"braided ribbon, metallic, twist, light collision, red, blue, liquid metal, abstract, 3d render, dark background, studio, distinct shape, concept, graphic resource, modern\",8,\nknotlume1-16.jpeg,\"Multi-fold origami paper cluster with prism-split rainbow, abstract 3D render\",\"origami, paper fold, cluster, prism, rainbow, abstract, 3d render, matte paper, studio background, distinct shape, concept, graphic resource, modern, wallpaper, minimal\",8,\nknotlume1-17.jpeg,\"Multi-fold origami paper cluster with underwater caustic light, abstract 3D render\",\"origami, paper fold, cluster, caustic light, water pattern, abstract, 3d render, matte paper, studio background, distinct shape, concept, graphic resource, modern\",8,\nknotlume1-18.jpeg,\"Multi-fold origami paper cluster glowing warm white, abstract 3D render\",\"origami, paper fold, cluster, glowing, warm white, inner light, translucent paper, abstract, 3d render, dark background, distinct shape, concept, graphic resource, modern\",8,\nknotlume1-19.jpeg,\"Multi-fold origami paper cluster with breathing rose gold pulse, abstract 3D render\",\"origami, paper fold, cluster, breathing light, rose, gold, pulse, abstract, 3d render, dark background, distinct shape, concept, graphic resource, modern, wallpaper\",8,\nknotlume1-20.jpeg,\"Multi-fold origami paper cluster with green purple light collision, abstract 3D render\",\"origami, paper fold, cluster, light collision, green, purple, abstract, 3d render, dark background, distinct shape, concept, graphic resource, modern, wallpaper\",8,\nknotlume1-21.jpeg,\"Spiraling glass knot with prism-split rainbow, abstract 3D render\",\"glass knot, spiral, prism, rainbow, glossy glass, abstract, 3d render, dark background, studio, distinct shape, concept, graphic resource, modern, wallpaper, minimal\",8,\nknotlume1-22.jpeg,\"Spiraling glass knot with underwater caustic light, abstract 3D render\",\"glass knot, spiral, caustic light, water pattern, glossy glass, abstract, 3d render, dark background, studio, distinct shape, concept, graphic resource, modern\",8,\nknotlume1-23.jpeg,\"Spiraling glass knot glowing emerald green, abstract 3D render\",\"glass knot, spiral, glowing, emerald, green, inner light, translucent glass, abstract, 3d render, dark background, distinct shape, concept, graphic resource, modern\",8,\nknotlume1-24.jpeg,\"Spiraling glass knot with breathing lavender blue pulse, abstract 3D render\",\"glass knot, spiral, breathing light, lavender, blue, pulse, glossy glass, abstract, 3d render, dark background, distinct shape, concept, graphic resource, modern\",8,\nknotlume1-25.jpeg,\"Spiraling glass knot with amber teal light collision, abstract 3D render\",\"glass knot, spiral, light collision, amber, teal, glossy glass, abstract, 3d render, dark background, distinct shape, concept, graphic resource, modern, wallpaper\",8,\nknotlume1-26.jpeg,\"Fractured crystal shard cluster with prism-split rainbow, abstract 3D render\",\"crystal shards, fractured, cluster, prism, rainbow, faceted, abstract, 3d render, dark background, studio, distinct shape, concept, graphic resource, modern, wallpaper\",8,\nknotlume1-27.jpeg,\"Fractured crystal shard cluster with underwater caustic light, abstract 3D render\",\"crystal shards, fractured, cluster, caustic light, water pattern, faceted, abstract, 3d render, dark background, studio, distinct shape, concept, graphic resource, modern\",8,\nknotlume1-28.jpeg,\"Fractured crystal shard cluster glowing deep violet, abstract 3D render\",\"crystal shards, fractured, cluster, glowing, violet, inner light, translucent, faceted, abstract, 3d render, dark background, distinct shape, concept, graphic resource, modern\",8,\nknotlume1-29.jpeg,\"Fractured crystal shard cluster with breathing pink blue pulse, abstract 3D render\",\"crystal shards, fractured, cluster, breathing light, pink, blue, pulse, faceted, abstract, 3d render, dark background, distinct shape, concept, graphic resource, modern\",8,\nknotlume1-30.jpeg,\"Fractured crystal shard cluster with gold indigo light collision, abstract 3D render\",\"crystal shards, fractured, cluster, light collision, gold, indigo, faceted, abstract, 3d render, dark background, distinct shape, concept, graphic resource, modern, wallpaper\",8,\n", "csv_filename": "adobe-stock-knotlume1-batch.csv"}, {"name": "watercolor1- (Botanical Floral Test)", "date": "2026-10-06", "covers": ["Watercolor botanical / floral"], "prompts": "20 prompts: 8 single bouquets, 6 borders/wreaths, 3 wedding/invitation frames, 3 original combos. Results were high quality but paused pending sales data. See CSV for full titles.", "csv": "Filename,Title,Keywords,Category,Releases\nwatercolor1-1.jpeg,\"Watercolor wildflower bouquet with peony, rose, chamomile and eucalyptus, botanical illustration\",\"watercolor, bouquet, wildflower, peony, rose, chamomile, eucalyptus, botanical, floral, illustration, wedding invitation, greeting card, fashion, textile, print, pink, orange, spring, hand painted, clipart\",14,\nwatercolor1-2.jpeg,\"Watercolor hydrangea bouquet with myosotis and eucalyptus leaves, blue floral illustration\",\"watercolor, hydrangea, myosotis, eucalyptus, bouquet, blue flowers, white flowers, botanical, floral, illustration, wedding invitation, greeting card, fashion, textile, print, hand painted, clipart\",14,\nwatercolor1-3.jpeg,\"Watercolor pink peony flower close-up, botanical illustration\",\"watercolor, peony, pink flower, close up, botanical, floral, illustration, wedding invitation, greeting card, fashion, textile, print, hand painted, clipart, single flower, spring\",14,\nwatercolor1-4.jpeg,\"Watercolor wild rose branch with pink and white blossoms, botanical illustration\",\"watercolor, wild rose, branch, pink flowers, white flowers, leaves, botanical, floral, illustration, wedding invitation, greeting card, fashion, textile, print, hand painted, clipart, spring\",14,\nwatercolor1-5.jpeg,\"Watercolor autumn dried wildflowers and golden leaves bouquet, fall botanical illustration\",\"watercolor, autumn, fall, dried flowers, wildflowers, golden leaves, wheat, fern, botanical, floral, illustration, wedding invitation, greeting card, fashion, textile, print, hand painted, clipart\",14,\nwatercolor1-6.jpeg,\"Watercolor lavender and white daisy bouquet, purple botanical illustration\",\"watercolor, lavender, daisy, bouquet, purple flowers, white flowers, botanical, floral, illustration, wedding invitation, greeting card, fashion, textile, print, hand painted, clipart, spring\",14,\nwatercolor1-7.jpeg,\"Watercolor eucalyptus and white rose bouquet, sage green botanical illustration\",\"watercolor, eucalyptus, white rose, bouquet, sage green, botanical, floral, illustration, wedding invitation, greeting card, fashion, textile, print, hand painted, clipart, leaves\",14,\nwatercolor1-8.jpeg,\"Watercolor wild shamrock clover and yellow flowers cluster, botanical illustration\",\"watercolor, shamrock, clover, yellow flowers, cluster, botanical, floral, illustration, wedding invitation, greeting card, fashion, textile, print, hand painted, clipart, green, spring\",14,\nwatercolor1-9.jpeg,\"Watercolor floral wreath border of peony, rose and eucalyptus, botanical illustration\",\"watercolor, floral wreath, border, peony, rose, eucalyptus, circle, botanical, floral, illustration, wedding invitation, greeting card, fashion, textile, print, hand painted, clipart, frame\",14,\nwatercolor1-10.jpeg,\"Watercolor floral border of blue hydrangea and white myosotis, botanical illustration\",\"watercolor, floral border, hydrangea, myosotis, blue flowers, white flowers, bottom border, botanical, floral, illustration, wedding invitation, greeting card, fashion, textile, print, hand painted, clipart\",14,\nwatercolor1-11.jpeg,\"Watercolor floral corner border of wildflowers and green leaves, botanical illustration\",\"watercolor, floral corner, border, wildflowers, green leaves, botanical, floral, illustration, wedding invitation, greeting card, fashion, textile, print, hand painted, clipart, frame\",14,\nwatercolor1-12.jpeg,\"Watercolor autumn leaves and dried flower wreath border, fall botanical illustration\",\"watercolor, autumn, fall, dried flowers, leaves, wreath, border, warm tones, botanical, floral, illustration, wedding invitation, greeting card, fashion, textile, print, hand painted, clipart\",14,\nwatercolor1-13.jpeg,\"Watercolor floral arch border of roses and chamomile with empty center, botanical illustration\",\"watercolor, floral arch, border, roses, chamomile, copy space, botanical, floral, illustration, wedding invitation, greeting card, fashion, textile, print, hand painted, clipart, frame\",14,\nwatercolor1-14.jpeg,\"Watercolor lavender and eucalyptus garland border, top botanical illustration\",\"watercolor, lavender, eucalyptus, garland, border, top border, botanical, floral, illustration, wedding invitation, greeting card, fashion, textile, print, hand painted, clipart\",14,\nwatercolor1-15.jpeg,\"Watercolor wedding invitation frame with peony and rose corners, pastel floral illustration\",\"watercolor, wedding invitation, frame, peony, rose, corner florals, pastel, copy space, botanical, floral, illustration, greeting card, fashion, textile, print, hand painted, clipart\",14,\nwatercolor1-16.jpeg,\"Watercolor save-the-date frame with blue hydrangea and eucalyptus corners, pastel floral illustration\",\"watercolor, save the date, frame, hydrangea, eucalyptus, corner florals, pastel, copy space, botanical, floral, illustration, wedding invitation, greeting card, fashion, textile, print, hand painted, clipart\",14,\nwatercolor1-17.jpeg,\"Watercolor greeting card floral frame with wildflowers and green leaves corners, pastel botanical illustration\",\"watercolor, greeting card, frame, wildflowers, green leaves, corner florals, pastel, copy space, botanical, floral, illustration, wedding invitation, fashion, textile, print, hand painted, clipart\",14,\nwatercolor1-18.jpeg,\"Watercolor tropical hibiscus and monstera leaf bouquet, botanical illustration\",\"watercolor, tropical, hibiscus, monstera, leaf, bouquet, botanical, floral, illustration, wedding invitation, greeting card, fashion, textile, print, hand painted, clipart, exotic\",14,\nwatercolor1-19.jpeg,\"Watercolor wild poppy and cornflower bouquet, red and blue botanical illustration\",\"watercolor, poppy, cornflower, bouquet, red flowers, blue flowers, botanical, floral, illustration, wedding invitation, greeting card, fashion, textile, print, hand painted, clipart, wildflower\",14,\nwatercolor1-20.jpeg,\"Watercolor cherry blossom branch with pink petals, botanical illustration\",\"watercolor, cherry blossom, branch, pink petals, spring, botanical, floral, illustration, wedding invitation, greeting card, fashion, textile, print, hand painted, clipart, sakura\",14,\n", "csv_filename": "adobe-stock-watercolor1-batch.csv"}]
+;
+
+const TIPS = [
+  { title: "Prompt format (the qualifier suffix)", body: "Every prompt should end with quality qualifiers: 'award-winning' or 'premium' + style word (editorial/isometric/3D/digital) + 'sophisticated color grading, polished professional vector art, balanced eye-catching composition, no text, no signage, no lettering, 16:9'. Dropping this suffix noticeably hurt output quality in testing." },
+  { title: "Glassmorphism: avoid generic swirls", body: "A plain twisting ribbon/vortex with no recognizable object gets rejected. Every glass prompt must form a CLEARLY RECOGNIZABLE object (animal, flower, object) and explicitly say 'not a generic abstract swirl, sharply defined [object] silhouette'." },
+  { title: "People in illustrations: copyright safety", body: "AI often reproduces a training photo's real face/body parts closely enough to trigger copyright claims. Add 'stylized fictional character with simplified generic features' to every prompt with a person. Keep faces non-specific/stylized, never photoreal." },
+  { title: "Recognizable property & tech products", body: "A specific real building, office interior, or tech product shape can trigger claims even with 'created with generative AI' checked. For tech prompts, always add 'no logos, no screen UI' to the suffix." },
+  { title: "Keyword/title strategy for search ranking", body: "Lead titles and keywords with the SPECIFIC noun (e.g. 'koi fish', 'maple leaf') not a generic category word. Narrow/specific phrases rank on page 1; broad generic phrases ('3d glass sculpture concept') have too much competition." },
+  { title: "CSV category mapping", body: "Metaphor/animal concept -> 3 (Business) or 6 (State of Mind). Glassmorphism -> 8 (Graphic Resources). Lifestyle/isometric scenes -> 12 (Lifestyle), or 14 (Plants/Flowers) for gardening, 7 (Food) for cooking, 18 (Sport), 20 (Transport), 17 (Social Issues) for charity/donation. Technology -> 19. Wellness/metaphor -> 6." },
+  { title: "File naming", body: "Use .jpeg extension (not .jpg) to match what's expected on upload. Each batch gets its own short prefix (e.g. 'knotlume1-', 'events1-') followed by a number." },
+  { title: "Event timing rule", body: "Upload seasonal/event content at least 20-90 days before the date, to allow for Adobe's review lag. Skip events closer than ~15-20 days away; it's often too late by the time of approval." },
+  { title: "Sensitive topics to skip in quick batches", body: "Avoid World AIDS Day, Gender-Based Violence awareness, and similarly sensitive health/social topics in fast, high-volume batches. These deserve careful, dedicated treatment, not assembly-line prompts." },
+  { title: "Abstract 3D render differentiation", body: "Material change alone (ice, metal, silk) isn't enough to stand out in the saturated abstract-render market. The real differentiator is SHAPE TOPOLOGY (a tangled knot, faceted cluster, fracture) combined with unusual light-behavior (prism-split, caustic, internal glow) rather than a plain smooth curve." },
+  { title: "Copy-space composition", body: "Many top-selling abstract/background assets leave an empty, uncluttered area in the frame on purpose — buyers use that space to place their own text or logo. Worth adding 'large empty copy-space area' to abstract background prompts." },
+];
+
+function loadJSON(key, fallback) {
+  try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; }
+  catch(e) { return fallback; }
+}
+
+const SYNC_KEYS = ['stockplanner_entries', 'stockplanner_custom_events', 'stockplanner_done'];
+let dbDocRef = null;
+let cloudStatus = 'checking'; // 'checking' | 'connected' | 'unavailable'
+
+function saveJSON(key, obj) {
+  try { localStorage.setItem(key, JSON.stringify(obj)); } catch(e) {}
+  if (SYNC_KEYS.indexOf(key) !== -1) { syncToCloud(); }
+}
+
+function syncToCloud() {
+  if (!dbDocRef) return;
+  const payload = {
+    entries: loadJSON('stockplanner_entries', []),
+    custom_events: loadJSON('stockplanner_custom_events', []),
+    done: loadJSON('stockplanner_done', {})
+  };
+  dbDocRef.set(payload).catch(function(e) { /* transient — local copy is still safe */ });
+}
+
+async function initCloudSync() {
+  try {
+    const db = await claude.use("db");
+    const user = await claude.use("user");
+    if (!db || !user) { cloudStatus = 'unavailable'; return; }
+    const id = await user.id();
+    if (!id) { cloudStatus = 'unavailable'; return; }
+    dbDocRef = db.doc("data/users/" + id + "/planner");
+    const snap = await dbDocRef.get();
+    if (snap.exists) {
+      const data = snap.data() || {};
+      if (data.entries) { try { localStorage.setItem('stockplanner_entries', JSON.stringify(data.entries)); } catch(e){} }
+      if (data.custom_events) { try { localStorage.setItem('stockplanner_custom_events', JSON.stringify(data.custom_events)); } catch(e){} }
+      if (data.done) { try { localStorage.setItem('stockplanner_done', JSON.stringify(data.done)); } catch(e){} }
+    } else {
+      syncToCloud();
+    }
+    cloudStatus = 'connected';
+  } catch(e) {
+    cloudStatus = 'unavailable';
+  }
+  const activeTab = document.querySelector('.tab.active');
+  if (activeTab) render(activeTab.getAttribute('data-tab'));
+}
+
+function getAllEvents() {
+  const custom = loadJSON('stockplanner_custom_events', []);
+  return BUILTIN_EVENTS.map(function(e){ return Object.assign({builtin:true}, e); })
+    .concat(custom.map(function(e){ return Object.assign({builtin:false}, e); }));
+}
+
+function getAllTrackOptions() {
+  const custom = loadJSON('stockplanner_custom_events', []);
+  const eventNames = custom.map(function(e){ return e.name; });
+  const builtinEventNames = BUILTIN_EVENTS.map(function(e){ return e.name; });
+  const batchNames = BATCHES.map(function(b){ return b.name; });
+  const all = batchNames.concat(BASE_NICHE_NAMES).concat(builtinEventNames).concat(eventNames);
+  return all.filter(function(v,i){ return all.indexOf(v) === i; });
+}
+
+function incrementGenerated(niche) {
+  const today = new Date().toISOString().slice(0,10);
+  const entries = loadJSON('stockplanner_entries', []);
+  let entry = entries.find(function(e){ return e.niche === niche && e.date === today && e.autoGenerated; });
+  if (!entry) {
+    entry = { niche: niche, date: today, generated: 0, approved: 0, rejected: 0, sales: 0, earnings: 0, note: 'auto-tallied from Batches copy', autoGenerated: true };
+    entries.push(entry);
+  }
+  entry.generated += 1;
+  saveJSON('stockplanner_entries', entries);
+  return entry.generated;
+}
+
+function todaysAutoCount(niche) {
+  const today = new Date().toISOString().slice(0,10);
+  const entries = loadJSON('stockplanner_entries', []);
+  const entry = entries.find(function(e){ return e.niche === niche && e.date === today && e.autoGenerated; });
+  return entry ? entry.generated : 0;
+}
+
+function daysUntil(dateStr) {
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const target = new Date(dateStr);
+  return Math.round((target - today) / 86400000);
+}
+
+function urgencyBadge(days) {
+  if (days < 0) return '<span class="badge done">passed</span>';
+  if (days <= 30) return '<span class="badge urgent">' + days + 'd left</span>';
+  if (days <= 60) return '<span class="badge soon">' + days + 'd left</span>';
+  return '<span class="badge later">' + days + 'd left</span>';
+}
+
+function rateBadge(rate) {
+  if (rate === null) return '';
+  const cls = rate >= 70 ? 'rate-good' : (rate >= 45 ? 'rate-mid' : 'rate-low');
+  return '<span class="badge ' + cls + '">' + rate + '% approved</span>';
+}
+
+function renderEvents() {
+  const done = loadJSON('stockplanner_done', {});
+  const all = getAllEvents().slice().sort(function(a,b){ return daysUntil(a.date) - daysUntil(b.date); });
+  let html = '<div class="section-label">Add a new event</div>';
+  html += '<div class="card">' +
+    '<span class="field-label">Event name</span>' +
+    '<input type="text" id="ev-name" placeholder="e.g. Valentine Day">' +
+    '<span class="field-label">Date</span>' +
+    '<input type="date" id="ev-date">' +
+    '<span class="field-label">Tags / theme ideas</span>' +
+    '<input type="text" id="ev-tags" placeholder="e.g. hearts, romance metaphor">' +
+    '<button class="btn" id="btn-add-event">Add event</button>' +
+  '</div>';
+
+  html += '<div class="section-label">Upcoming events <span class="event-count">' + all.length + '</span></div>';
+  all.forEach(function(ev) {
+    const d = daysUntil(ev.date);
+    const isDone = !!done[ev.name];
+    html += '<div class="card">' +
+      (ev.builtin ? '' : '<div class="del" data-del-event="' + encodeURIComponent(ev.name) + '">&#10005;</div>') +
+      '<div class="check ' + (isDone ? 'on' : '') + '" data-name="' + encodeURIComponent(ev.name) + '">' + (isDone ? '&#10003;' : '') + '</div>' +
+      '<p class="card-title">' + ev.name + '</p>' +
+      '<p class="card-meta">' + urgencyBadge(d) + (ev.range || ev.date) + '</p>' +
+      '<p class="card-tags">' + (ev.tags||'') + '</p>' +
+    '</div>';
+  });
+  return html;
+}
+
+function renderNiches() {
+  let html = '<div class="section-label">Proven niches (by confidence)</div>';
+  const sorted = NICHES_INFO.slice().sort(function(a,b){ return b.stars - a.stars; });
+  sorted.forEach(function(n) {
+    html += '<div class="card">' +
+      '<p class="card-title">' + n.name + '</p>' +
+      '<p class="niche-stars">' + '&#9733;'.repeat(n.stars) + '&#9734;'.repeat(5-n.stars) + '</p>' +
+      '<p class="card-tags">' + n.note + '</p>' +
+    '</div>';
+  });
+  return html;
+}
+
+function computeTotals(entries) {
+  let gen=0, app=0, rej=0, sales=0;
+  entries.forEach(function(e) {
+    gen += (e.generated||0); app += (e.approved||0); rej += (e.rejected||0); sales += (e.sales||0);
+  });
+  const reviewed = app + rej;
+  const rate = reviewed > 0 ? Math.round((app / reviewed) * 100) : null;
+  return { gen: gen, app: app, rej: rej, sales: sales, rate: rate };
+}
+
+function renderTracker() {
+  const entries = loadJSON('stockplanner_entries', []);
+  const today = new Date().toISOString().slice(0,10);
+  const options = getAllTrackOptions();
+  const optionsHtml = options.map(function(n) { return '<option value="' + n.replace(/"/g,'&quot;') + '">' + n + '</option>'; }).join('');
+
+  let html = '<div class="section-label">Log a batch</div>';
+  html += '<div class="card">' +
+    '<p class="note">Tip: tapping the copy icon in Batches already auto-counts "generated" for today. Use this form to add approved / rejected / sales once you know the results — pick the same name from the dropdown.</p>' +
+    '<span class="field-label">Niche / Event</span>' +
+    '<select id="in-niche">' + optionsHtml + '</select>' +
+    '<span class="field-label">Date</span>' +
+    '<input type="date" id="in-date" value="' + today + '">' +
+    '<span class="field-label">Generated / Approved / Rejected</span>' +
+    '<div class="row3">' +
+      '<input type="number" id="in-gen" min="0" placeholder="Gen">' +
+      '<input type="number" id="in-app" min="0" placeholder="Appr">' +
+      '<input type="number" id="in-rej" min="0" placeholder="Rej">' +
+    '</div>' +
+    '<span class="field-label">Sales (optional)</span>' +
+    '<div class="row2">' +
+      '<input type="number" id="in-sales" min="0" placeholder="Sales count">' +
+      '<input type="number" id="in-earn" min="0" step="0.01" placeholder="Earnings $">' +
+    '</div>' +
+    '<span class="field-label">Note (optional)</span>' +
+    '<input type="text" id="in-note" placeholder="e.g. Movember batch, events1-">' +
+    '<button class="btn" id="btn-add">Add entry</button>' +
+  '</div>';
+
+  const byNiche = {};
+  entries.forEach(function(e) {
+    if (!byNiche[e.niche]) byNiche[e.niche] = [];
+    byNiche[e.niche].push(e);
+  });
+
+  const overall = computeTotals(entries);
+  let overallEarn = 0;
+  entries.forEach(function(e){ overallEarn += (e.earnings||0); });
+
+  html += '<div class="section-label">Overall totals</div>';
+  html += '<div class="card"><div class="totals-grid">' +
+    '<div><span class="totals-num">' + overall.gen + '</span><span class="totals-label">Generated</span></div>' +
+    '<div><span class="totals-num">' + overall.app + '</span><span class="totals-label">Approved</span></div>' +
+    '<div><span class="totals-num">' + overall.sales + '</span><span class="totals-label">Sales</span></div>' +
+    '<div><span class="totals-num">$' + overallEarn.toFixed(2) + '</span><span class="totals-label">Earnings</span></div>' +
+  '</div></div>';
+
+  html += '<div class="section-label">By niche / event</div>';
+  const nicheKeys = Object.keys(byNiche);
+  if (nicheKeys.length === 0) {
+    html += '<div class="empty">No entries yet — add your first batch above.</div>';
+  } else {
+    nicheKeys.sort(function(a,b) {
+      const ta = computeTotals(byNiche[a]), tb = computeTotals(byNiche[b]);
+      return (tb.rate||0) - (ta.rate||0);
+    }).forEach(function(niche) {
+      const t = computeTotals(byNiche[niche]);
+      html += '<div class="card">' +
+        '<p class="card-title">' + niche + '</p>' +
+        '<p class="card-meta">' + rateBadge(t.rate) +
+          (t.sales > 0 ? '<span class="badge sales">' + t.sales + ' sales</span>' : '') +
+          '<span class="entry-numbers">' + t.gen + ' gen, ' + t.app + ' appr, ' + t.rej + ' rej</span></p>';
+      byNiche[niche].slice().sort(function(a,b){ return b.date.localeCompare(a.date); }).forEach(function(e) {
+        html += '<div class="entry-row" style="margin-top:6px; border-top:1px solid var(--border); padding-top:6px;">' +
+          '<span class="entry-numbers">' + e.date + (e.note ? ' — ' + e.note : '') + '</span>' +
+          '<span class="entry-numbers">' + e.generated + '/' + e.approved + '/' + e.rejected +
+            (e.sales ? ' · ' + e.sales + ' sold' : '') + '</span>' +
+        '</div>';
+      });
+      html += '</div>';
+    });
+  }
+
+  html += '<button class="btn secondary" id="btn-clear">Clear all tracker data</button>';
+  return html;
+}
+
+function renderExport() {
+  const entries = loadJSON('stockplanner_entries', []);
+  const customEvents = loadJSON('stockplanner_custom_events', []);
+  const payload = { exported_at: new Date().toISOString(), entries: entries, custom_events: customEvents };
+  const json = JSON.stringify(payload, null, 2);
+
+  let statusHtml;
+  if (cloudStatus === 'connected') {
+    statusHtml = '<span class="badge rate-good">&#9679; Cloud sync on</span> <span class="card-tags">Your data follows your Claude account across devices automatically.</span>';
+  } else if (cloudStatus === 'checking') {
+    statusHtml = '<span class="badge soon">&#9679; Checking...</span>';
+  } else {
+    statusHtml = '<span class="badge rate-low">&#9679; Local only</span> <span class="card-tags">Cloud sync isn\'t available in this view — your data stays on this device only. Export regularly as a backup.</span>';
+  }
+
+  let html = '<div class="section-label">Sync status</div>';
+  html += '<div class="card">' + statusHtml + '</div>';
+
+  html += '<div class="section-label">Export your data</div>';
+  html += '<div class="card">' +
+    '<p class="card-tags">Copy this and paste it to Claude in chat to share your tracker data, or save it as a file.</p>' +
+    '<textarea id="export-area" rows="10" readonly>' + json.replace(/</g,'&lt;') + '</textarea>' +
+    '<button class="btn" id="btn-copy">Copy to clipboard</button>' +
+    '<button class="btn outline" id="btn-download">Download as file</button>' +
+    '<p class="note" id="export-status"></p>' +
+  '</div>';
+  return html;
+}
+
+function rotatingNiches(count) {
+  const top = NICHES_INFO.filter(function(n){ return n.stars >= 4; });
+  const dayIndex = Math.floor(new Date().getTime() / 86400000);
+  const picked = [];
+  for (let i = 0; i < count && i < top.length; i++) {
+    picked.push(top[(dayIndex + i) % top.length]);
+  }
+  return picked;
+}
+
+function renderAction() {
+  const all = getAllEvents();
+  const withDays = all.map(function(e){ return Object.assign({}, e, {d: daysUntil(e.date)}); });
+  const urgent = withDays.filter(function(e){ return e.d >= 0 && e.d <= 35; }).sort(function(a,b){ return a.d - b.d; });
+  const upcoming = withDays.filter(function(e){ return e.d > 35 && e.d <= 70; }).sort(function(a,b){ return a.d - b.d; });
+
+  const topEvent = urgent[0];
+  const evergreenPicks = rotatingNiches(topEvent ? 2 : 4);
+  let suggestionText, suggestionHtml;
+
+  if (topEvent) {
+    const eventCount = 10, evergreenCount = 10;
+    suggestionText = "Generate today's batch: " + eventCount + " prompts themed around \"" + topEvent.name + "\" (" + (topEvent.tags||'') + "), plus " + evergreenCount + " evergreen prompts from: " + evergreenPicks.map(function(n){return n.name;}).join(' / ') + ". Follow the usual qualifier format and keyword/category rules.";
+    suggestionHtml = '<p class="card-title">Today\'s suggested batch &mdash; 20 prompts</p>' +
+      '<p class="card-tags"><b>' + eventCount + '</b> themed around <b>' + topEvent.name + '</b> (' + urgencyBadge(topEvent.d) + ')<br>' +
+      '<span style="font-size:11.5px;">' + (topEvent.tags||'') + '</span></p>' +
+      '<p class="card-tags" style="margin-top:8px;"><b>' + evergreenCount + '</b> evergreen, rotating today\'s picks:<br>' +
+      evergreenPicks.map(function(n){ return '&#9733; ' + n.name; }).join('<br>') + '</p>';
+  } else {
+    suggestionText = "Generate today's batch: 20 evergreen prompts rotating across: " + evergreenPicks.map(function(n){return n.name;}).join(' / ') + ". Follow the usual qualifier format and keyword/category rules.";
+    suggestionHtml = '<p class="card-title">Today\'s suggested batch &mdash; 20 prompts</p>' +
+      '<p class="card-tags">No urgent event right now &mdash; full evergreen mix, rotating today\'s picks:<br>' +
+      evergreenPicks.map(function(n){ return '&#9733; ' + n.name; }).join('<br>') + '</p>';
+  }
+
+  let html = '<div class="section-label">Today\'s plan</div>';
+  html += '<div class="card" style="border: 1.5px solid var(--accent);">' + suggestionHtml +
+    '<button class="btn" id="btn-copy-suggestion" data-suggestion="' + encodeURIComponent(suggestionText) + '">Copy instruction for Claude</button>' +
+    '<p class="note" id="suggestion-status" style="display:none;">Copied! Paste this into your chat with Claude.</p>' +
+  '</div>';
+
+  html += '<div class="section-label">Work on this now</div>';
+  if (urgent.length === 0) {
+    html += '<div class="empty">No event within the next 35 days. Focus on proven evergreen niches below.</div>';
+  } else {
+    urgent.forEach(function(ev) {
+      const batch = BATCHES.find(function(b){ return b.covers.indexOf(ev.name) !== -1; });
+      html += '<div class="card">' +
+        '<p class="card-title">' + ev.name + '</p>' +
+        '<p class="card-meta">' + urgencyBadge(ev.d) + (ev.range||ev.date) + '</p>' +
+        '<p class="card-tags">' + (ev.tags||'') + '</p>' +
+        (batch ? '<p class="note">A batch already exists for this — see "' + batch.name + '" in the Batches tab.</p>' : '<p class="note">No batch made yet — ask Claude to generate prompts for this event.</p>') +
+      '</div>';
+    });
+  }
+
+  html += '<div class="section-label">Coming up (35-70 days out)</div>';
+  if (upcoming.length === 0) {
+    html += '<div class="empty">Nothing in this window yet.</div>';
+  } else {
+    upcoming.forEach(function(ev) {
+      html += '<div class="card">' +
+        '<p class="card-title">' + ev.name + '</p>' +
+        '<p class="card-meta">' + urgencyBadge(ev.d) + (ev.range||ev.date) + '</p>' +
+      '</div>';
+    });
+  }
+
+  html += '<div class="section-label">Always keep in the mix</div>';
+  html += '<div class="card"><p class="card-tags">Strategy: roughly 50% proven evergreen niches (literal lifestyle, guidance metaphor, distinct-shape glass) + 50% event/trending. Top proven niches:</p>';
+  NICHES_INFO.filter(function(n){ return n.stars >= 4; }).forEach(function(n) {
+    html += '<p class="card-tags">&#9733; ' + n.name + '</p>';
+  });
+  html += '</div>';
+
+  return html;
+}
+
+function renderTips() {
+  let html = '<div class="section-label">Things we\'ve learned</div>';
+  TIPS.forEach(function(t) {
+    html += '<div class="card">' +
+      '<p class="card-title">' + t.title + '</p>' +
+      '<p class="card-tags">' + t.body + '</p>' +
+    '</div>';
+  });
+  return html;
+}
+
+const COPY_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg>';
+const CHECK_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
+
+function renderBatches() {
+  let html = '<div class="section-label">Past batches</div>';
+  BATCHES.slice().sort(function(a,b){ return b.date.localeCompare(a.date); }).forEach(function(b, i) {
+    const autoCount = todaysAutoCount(b.name);
+    html += '<div class="card">' +
+      '<p class="card-title">' + b.name + '</p>' +
+      '<p class="card-meta">' + b.date + (autoCount > 0 ? ' <span class="badge sales">' + autoCount + ' copied today</span>' : '') + '</p>' +
+      '<p class="card-tags"><b>Covers:</b> ' + b.covers.join(', ') + '</p>';
+
+    if (b.prompts_list && b.prompts_list.length) {
+      html += '<details style="margin-top:10px;" open><summary style="cursor:pointer; font-size:12.5px; color:var(--accent); font-weight:600;">' + b.prompts_list.length + ' prompts &mdash; tap to copy</summary>' +
+        '<div style="margin-top:10px;">';
+      b.prompts_list.forEach(function(p, pi) {
+        html += '<div class="prompt-row">' +
+          '<span class="prompt-text">' + (pi+1) + '. ' + p.replace(/</g,'&lt;') + '</span>' +
+          '<button class="copy-btn" data-batch="' + i + '" data-idx="' + pi + '" title="Copy">' + COPY_ICON + '</button>' +
+        '</div>';
+      });
+      html += '</div></details>';
+    } else if (b.prompts) {
+      html += '<details style="margin-top:8px;"><summary style="cursor:pointer; font-size:12.5px; color:var(--accent); font-weight:600;">View prompts</summary>' +
+        '<pre style="white-space:pre-wrap; font-size:11.5px; color:var(--text-secondary); margin-top:8px; font-family:inherit;">' + b.prompts.replace(/</g,'&lt;') + '</pre>' +
+      '</details>';
+    }
+
+    html += '<button class="btn outline" data-dl-csv="' + i + '" style="margin-top:10px;">Download CSV</button>' +
+    '</div>';
+  });
+  return html;
+}
+
+function render(tab) {
+  const main = document.getElementById('main');
+  if (tab === 'action') main.innerHTML = renderAction();
+  else if (tab === 'events') main.innerHTML = renderEvents();
+  else if (tab === 'niches') main.innerHTML = renderNiches();
+  else if (tab === 'tips') main.innerHTML = renderTips();
+  else if (tab === 'batches') main.innerHTML = renderBatches();
+  else if (tab === 'tracker') main.innerHTML = renderTracker();
+  else main.innerHTML = renderExport();
+
+  if (tab === 'action') {
+    const btn = document.getElementById('btn-copy-suggestion');
+    if (btn) {
+      btn.addEventListener('click', async function() {
+        const text = decodeURIComponent(btn.getAttribute('data-suggestion'));
+        try { await navigator.clipboard.writeText(text); }
+        catch(e) {
+          const ta = document.createElement('textarea');
+          ta.value = text; document.body.appendChild(ta); ta.select();
+          try { document.execCommand('copy'); } catch(e2) {}
+          document.body.removeChild(ta);
+        }
+        const status = document.getElementById('suggestion-status');
+        if (status) status.style.display = 'block';
+      });
+    }
+  }
+
+  if (tab === 'events') {
+    main.querySelectorAll('.check').forEach(function(el) {
+      el.addEventListener('click', function() {
+        const name = decodeURIComponent(el.getAttribute('data-name'));
+        const done = loadJSON('stockplanner_done', {});
+        done[name] = !done[name];
+        saveJSON('stockplanner_done', done);
+        render('events');
+      });
+    });
+    main.querySelectorAll('[data-del-event]').forEach(function(el) {
+      el.addEventListener('click', function() {
+        const name = decodeURIComponent(el.getAttribute('data-del-event'));
+        let custom = loadJSON('stockplanner_custom_events', []);
+        custom = custom.filter(function(e){ return e.name !== name; });
+        saveJSON('stockplanner_custom_events', custom);
+        render('events');
+      });
+    });
+    const addEvBtn = document.getElementById('btn-add-event');
+    if (addEvBtn) {
+      addEvBtn.addEventListener('click', function() {
+        const name = document.getElementById('ev-name').value.trim();
+        const date = document.getElementById('ev-date').value;
+        const tags = document.getElementById('ev-tags').value.trim();
+        if (!name || !date) { return; }
+        const custom = loadJSON('stockplanner_custom_events', []);
+        custom.push({ name: name, date: date, tags: tags });
+        saveJSON('stockplanner_custom_events', custom);
+        render('events');
+      });
+    }
+  }
+
+  if (tab === 'tracker') {
+    const addBtn = document.getElementById('btn-add');
+    if (addBtn) {
+      addBtn.addEventListener('click', function() {
+        const niche = document.getElementById('in-niche').value;
+        const date = document.getElementById('in-date').value || new Date().toISOString().slice(0,10);
+        const gen = parseInt(document.getElementById('in-gen').value || '0', 10);
+        const app = parseInt(document.getElementById('in-app').value || '0', 10);
+        const rej = parseInt(document.getElementById('in-rej').value || '0', 10);
+        const sales = parseInt(document.getElementById('in-sales').value || '0', 10);
+        const earnings = parseFloat(document.getElementById('in-earn').value || '0');
+        const note = document.getElementById('in-note').value || '';
+        if (gen===0 && app===0 && rej===0 && sales===0 && earnings===0) { return; }
+        const entries = loadJSON('stockplanner_entries', []);
+        entries.push({ niche: niche, date: date, generated: gen, approved: app, rejected: rej, sales: sales, earnings: earnings, note: note });
+        saveJSON('stockplanner_entries', entries);
+        render('tracker');
+      });
+    }
+    const clearBtn = document.getElementById('btn-clear');
+    if (clearBtn) {
+      clearBtn.addEventListener('click', function() {
+        if (confirm('Clear all tracker entries? This cannot be undone.')) {
+          saveJSON('stockplanner_entries', []);
+          render('tracker');
+        }
+      });
+    }
+  }
+
+  if (tab === 'batches') {
+    main.querySelectorAll('.copy-btn').forEach(function(el) {
+      el.addEventListener('click', async function() {
+        const bIdx = parseInt(el.getAttribute('data-batch'), 10);
+        const pIdx = parseInt(el.getAttribute('data-idx'), 10);
+        const text = BATCHES[bIdx].prompts_list[pIdx];
+        try {
+          await navigator.clipboard.writeText(text);
+        } catch(e) {
+          const ta = document.createElement('textarea');
+          ta.value = text; document.body.appendChild(ta); ta.select();
+          try { document.execCommand('copy'); } catch(e2) {}
+          document.body.removeChild(ta);
+        }
+        incrementGenerated(BATCHES[bIdx].name);
+        const original = el.innerHTML;
+        el.innerHTML = CHECK_ICON;
+        el.classList.add('copied');
+        const badgeHost = el.closest('.card').querySelector('.card-meta');
+        const newCount = todaysAutoCount(BATCHES[bIdx].name);
+        if (badgeHost && !badgeHost.querySelector('.badge')) {
+          badgeHost.insertAdjacentHTML('beforeend', ' <span class="badge sales">' + newCount + ' copied today</span>');
+        } else if (badgeHost) {
+          const badgeEl = badgeHost.querySelector('.badge');
+          if (badgeEl) badgeEl.textContent = newCount + ' copied today';
+        }
+        setTimeout(function() { el.innerHTML = original; el.classList.remove('copied'); }, 1200);
+      });
+    });
+    main.querySelectorAll('[data-dl-csv]').forEach(function(el) {
+      el.addEventListener('click', async function() {
+        const idx = parseInt(el.getAttribute('data-dl-csv'), 10);
+        const b = BATCHES[idx];
+        try {
+          const downloads = await claude.use("downloads");
+          if (downloads) {
+            await downloads.save({ filename: b.csv_filename || (b.name + '.csv'), data: b.csv });
+            return;
+          }
+        } catch(e) {}
+        // fallback: copy to clipboard
+        try {
+          await navigator.clipboard.writeText(b.csv);
+          alert('Download not available here — the CSV was copied to your clipboard instead. Paste it into a new file named "' + (b.csv_filename||'batch.csv') + '".');
+        } catch(e2) {
+          alert('Could not download or copy automatically. Ask Claude to resend this CSV in chat.');
+        }
+      });
+    });
+  }
+
+  if (tab === 'export') {
+    const copyBtn = document.getElementById('btn-copy');
+    const statusEl = document.getElementById('export-status');
+    if (copyBtn) {
+      copyBtn.addEventListener('click', function() {
+        const area = document.getElementById('export-area');
+        area.select();
+        try {
+          navigator.clipboard.writeText(area.value).then(function(){
+            statusEl.textContent = 'Copied! Paste it in your chat with Claude.';
+          }).catch(function(){
+            document.execCommand('copy');
+            statusEl.textContent = 'Copied! Paste it in your chat with Claude.';
+          });
+        } catch(e) {
+          try { document.execCommand('copy'); statusEl.textContent = 'Copied!'; }
+          catch(e2) { statusEl.textContent = 'Could not copy automatically — select the text above and copy manually.'; }
+        }
+      });
+    }
+    const dlBtn = document.getElementById('btn-download');
+    if (dlBtn) {
+      dlBtn.addEventListener('click', async function() {
+        const area = document.getElementById('export-area');
+        try {
+          const downloads = await claude.use("downloads");
+          if (downloads) {
+            await downloads.save({ filename: "stock-planner-export.json", data: area.value });
+            statusEl.textContent = 'Download requested — check the save prompt.';
+            return;
+          }
+        } catch(e) {}
+        statusEl.textContent = 'Direct download is not available here — use "Copy to clipboard" instead and paste it to Claude or into a note.';
+      });
+    }
+  }
+}
+
+function selectTab(tabName) {
+  document.querySelectorAll('.tab').forEach(function(x){ x.classList.remove('active'); });
+  document.querySelectorAll('.hicon').forEach(function(x){ x.classList.remove('active'); });
+  const navTab = document.querySelector('.tab[data-tab="' + tabName + '"]');
+  const hIcon = document.querySelector('.hicon[data-tab="' + tabName + '"]');
+  if (navTab) navTab.classList.add('active');
+  if (hIcon) hIcon.classList.add('active');
+  render(tabName);
+  window.scrollTo(0, 0);
+}
+
+document.querySelectorAll('.tab').forEach(function(t) {
+  t.addEventListener('click', function() { selectTab(t.getAttribute('data-tab')); });
+});
+document.querySelectorAll('.hicon').forEach(function(t) {
+  t.addEventListener('click', function() { selectTab(t.getAttribute('data-tab')); });
+});
+
+selectTab('action');
+initCloudSync();
+</script>
+
+</body>
+</html>
